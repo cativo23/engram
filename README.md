@@ -1,0 +1,93 @@
+# Engram
+
+> Turn your GitHub repos into a queryable, citation-backed knowledge base.
+> **grep finds strings, GitHub search finds files — Engram finds answers with receipts.**
+
+An open-source, self-hostable **agentic RAG** service that indexes your own
+repositories and answers natural-language questions about your code — every claim
+anchored to an exact `repo/path:line` citation.
+
+> 🚧 **Status: work in progress.** P1 (service skeleton) is done; real retrieval
+> lands in P2. See the [roadmap](#roadmap) and the full [PRD](docs/PRD.md).
+
+---
+
+## Why it exists
+
+A senior engineer's solutions are scattered across dozens of repos. `grep` finds
+strings; GitHub search finds files; neither explains *how the pieces fit* or
+survives a follow-up question. Engram makes your body of work conversational —
+ask in plain English, get a grounded answer with a citation you can click.
+
+"Chat with your codebase" is a crowded category (Cody, Cursor, Continue). What
+makes Engram different is the **framing and the rigor**:
+
+1. **A personal, multi-repo knowledge base** — not an assistant inside one repo, but a queryable memory of *everything you've built*.
+2. **Citations as a tested correctness contract** — exact `repo/file:line` provenance, enforced and measured (an answer without a citation is a failure).
+3. **A real evaluation harness** — recall@k, citation accuracy, groundedness, gated in CI.
+4. **Self-hostable, zero proprietary deps** — local embeddings + open models + pgvector in Docker.
+
+---
+
+## Architecture (target)
+
+```
+api (FastAPI)  →  agent (tool loop + memory)  →  retrieval / ingestion  →  embeddings / pgvector
+```
+
+- **Python + FastAPI** — streaming `/chat`.
+- **Postgres + pgvector** (Docker) — vector store with HNSW index.
+- **fastembed** — local embeddings (no embedding API).
+- **OpenRouter** — any OpenAI-compatible model via the `MODEL` env var.
+- **Agentic retrieval** — `search_code` / `read_file` / `list_repos` as tools the model calls.
+
+Full design, decisions, and rationale: **[docs/PRD.md](docs/PRD.md)**.
+
+---
+
+## Quickstart (P1)
+
+```bash
+git clone https://github.com/cativo23/engram.git
+cd engram
+
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+cp .env.example .env               # then paste your OpenRouter key into .env
+
+uvicorn engram.main:app --reload
+```
+
+Then, in another terminal:
+
+```bash
+# health check
+curl localhost:8000/health
+
+# chat (streams the answer; the X-Conversation-Id header lets you continue)
+curl -N -X POST localhost:8000/chat \
+  -H 'content-type: application/json' \
+  -d '{"message": "how is the agent loop implemented?"}'
+```
+
+> In P1, `search_code` is a stub — it exercises the full agent loop end-to-end.
+> Real pgvector-backed search arrives in P2.
+
+---
+
+## Roadmap
+
+| Phase | Deliverable | Status |
+|-------|-------------|--------|
+| **P1** | FastAPI skeleton: streaming `/chat`, memory, tool loop, stub search | ✅ done |
+| **P2** | Ingestion + pgvector: clone → chunk → embed → upsert; real `search_code` | ⏳ next |
+| **P3** | Evaluation harness: recall@k, citation accuracy, groundedness | ⏳ |
+| **P4** | Guardrails, observability, Dockerfile, polished README + demo | ⏳ |
+
+---
+
+## License
+
+[MIT](LICENSE) © Carlos Cativo

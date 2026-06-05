@@ -1,0 +1,9 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Coming later: local clones of indexed repos, model caches
+/repos/
+.fastembed_cache/
