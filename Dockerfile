@@ -3,6 +3,10 @@
 # includes engram/web/ static assets), serve with uvicorn.
 FROM python:3.14-slim
 
+# git is required by the ingestion pipeline (clones/pulls the repos to index).
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Install dependencies first so this layer caches across code changes.
