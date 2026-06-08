@@ -15,7 +15,7 @@ requires_db = pytest.mark.skipif(
 
 @pytest.fixture
 def db_conn():
-    """A connection to the test DB with a fresh schema, rolled back after the test."""
+    """A connection to the test DB with a fresh schema, truncated before each test."""
     from engram.db import connect, init_schema
 
     url = _test_db_url()

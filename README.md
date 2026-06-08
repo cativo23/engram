@@ -7,8 +7,7 @@ An open-source, self-hostable **agentic RAG** service that indexes your own
 repositories and answers natural-language questions about your code — every claim
 anchored to an exact `repo/path:line` citation.
 
-> 🚧 **Status: work in progress.** P1 (service skeleton) is done; real retrieval
-> lands in P2. See the [roadmap](#roadmap) and the full [PRD](docs/PRD.md).
+> 🚧 **Status: work in progress.** P1 (service skeleton) and P2 (pgvector ingestion + real search) are done. See the [roadmap](#roadmap) and the full [PRD](docs/PRD.md).
 
 ---
 
@@ -45,7 +44,7 @@ Full design, decisions, and rationale: **[docs/PRD.md](docs/PRD.md)**.
 
 ---
 
-## Quickstart (P1)
+## Quickstart
 
 ```bash
 git clone https://github.com/cativo23/engram.git
@@ -72,8 +71,8 @@ curl -N -X POST localhost:8000/chat \
   -d '{"message": "how is the agent loop implemented?"}'
 ```
 
-> In P1, `search_code` is a stub — it exercises the full agent loop end-to-end.
-> Real pgvector-backed search arrives in P2.
+> `search_code` queries pgvector for real (P2). Index repos first with
+> `docker compose exec app python -m engram.ingest owner/name`.
 
 ---
 
@@ -136,7 +135,8 @@ npm install && npm test # frontend logic tests (SSE parser, state reducer)
 | Phase | Deliverable | Status |
 |-------|-------------|--------|
 | **P1** | FastAPI skeleton: streaming `/chat`, memory, tool loop, stub search | ✅ done |
-| **P2** | Ingestion + pgvector: clone → chunk → embed → upsert; real `search_code` | ⏳ next |
+| **P2** | Ingestion + pgvector: clone → chunk → embed → upsert; real `search_code` | ✅ done |
+| **P2.5** | Admin UI: runtime repo management without CLI | ⏳ next |
 | **P3** | Evaluation harness: recall@k, citation accuracy, groundedness | ⏳ |
 | **P4** | Guardrails, observability, Dockerfile, polished README + demo | ⏳ |
 
