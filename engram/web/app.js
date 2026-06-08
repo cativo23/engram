@@ -50,6 +50,10 @@ async function recall(query) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: query, conversation_id: conversationId }),
     });
+    if (!resp.ok) {
+      setState({ ...reduce(state, { event: "error", data: { message: `server error (${resp.status})` } }), query });
+      return;  // the finally block still re-enables the input
+    }
     for await (const ev of streamSSE(resp)) {
       if (ev.event === "start" && ev.data?.conversation_id) {
         conversationId = ev.data.conversation_id;

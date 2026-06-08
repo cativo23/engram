@@ -2,13 +2,23 @@
 
 `search_code` returns STRUCTURED hits (a list of dicts) so the API layer can emit
 them as citation events, while `format_hits_for_model` turns them into the numbered
-text the model reads (and cites with [n] markers). In P1 the hits are a STUB; P2
-swaps the body for real pgvector similarity search — the return shape stays
-identical, so nothing downstream changes.
+text the model reads (and cites with [n] markers). In P1 the hits were a STUB; P2
+replaces the body with real pgvector cosine similarity search — the return shape
+stays identical, so nothing downstream changes.
 """
 
 import inspect
 import json
+
+from .config import settings
+from .db import connect
+from .ingest.embedder import embed_query
+
+
+def _search_connect():
+    """Indirection so tests can inject a live connection."""
+    return connect()
+
 
 TOOLS_SCHEMA = [
     {
@@ -36,38 +46,37 @@ TOOLS_SCHEMA = [
 
 
 def search_code(query: str) -> list[dict]:
-    """P1 STUB — returns placeholder STRUCTURED hits. Real vector search lands in P2.
+    """Embed the query and return the cosine-nearest indexed chunks as hits.
 
-    Each hit: repo, path, line_start, line_end, similarity, snippet, github_url.
-    The shape is the contract the frontend renders; only the values become real in P2.
+    Return shape is identical to the P1 stub, so the agent/SSE/frontend are
+    unchanged — only the values are now real.
     """
-    return [
-        {
-            "repo": "cativo23/llm-from-scratch",
-            "path": "02_agent.py",
-            "line_start": 76,
-            "line_end": 102,
-            "similarity": 0.82,
-            "snippet": (
-                "def take_turn(messages):\n"
-                "    resp = client.chat.completions.create(model=MODEL, messages=messages, tools=TOOLS)\n"
-                "    # run any requested tools, append results, then loop until no tool calls"
-            ),
-            "github_url": "https://github.com/cativo23/llm-from-scratch/blob/main/02_agent.py#L76-L102",
-        },
-        {
-            "repo": "cativo23/engram",
-            "path": "engram/agent.py",
-            "line_start": 37,
-            "line_end": 65,
-            "similarity": 0.74,
-            "snippet": (
-                "def run_agent(messages, client=None):\n"
-                "    # resolve tool calls (non-streamed), then stream the final answer"
-            ),
-            "github_url": "https://github.com/cativo23/engram/blob/main/engram/agent.py#L37-L65",
-        },
-    ]
+    vector = embed_query(query)
+    # jina-code embeddings are L2-normalized, so cosine similarity (1 - <=> distance)
+    # stays within ~[0,1]; a non-normalized model would break that assumption.
+    sql = (
+        "SELECT r.slug, r.indexed_sha, c.path, c.line_start, c.line_end, c.content, "
+        "       1 - (c.embedding <=> %s) AS similarity "
+        "FROM chunks c JOIN repos r ON r.id = c.repo_id "
+        "ORDER BY c.embedding <=> %s LIMIT %s"
+    )
+    with _search_connect() as conn:
+        # vector bound twice: once for the SELECT similarity column, once for ORDER BY
+        rows = conn.execute(sql, (vector, vector, settings.search_top_k)).fetchall()
+
+    hits = []
+    for slug, sha, path, start, end, content, similarity in rows:
+        ref = sha or "main"
+        hits.append({
+            "repo": slug,
+            "path": path,
+            "line_start": start,
+            "line_end": end,
+            "similarity": round(float(similarity), 4),
+            "snippet": content,
+            "github_url": f"https://github.com/{slug}/blob/{ref}/{path}#L{start}-L{end}",
+        })
+    return hits
 
 
 def format_hits_for_model(hits: list[dict], start_index: int = 1) -> str:

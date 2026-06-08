@@ -19,5 +19,15 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     max_tool_iterations: int = 5          # safety cap on the agent loop
 
+    # P2 — ingestion + vector store
+    database_url: str = "postgresql://engram:engram@db:5432/engram"
+    embedding_model: str = "jinaai/jina-embeddings-v2-base-code"
+    embed_dim: int = 768
+    chunk_lines: int = 40
+    chunk_overlap: int = 10
+    search_top_k: int = 6
+    repos_dir: str = "repos"          # gitignored clone target
+    fastembed_cache_path: str = ".fastembed_cache"   # gitignored; mount as a volume in Docker
+
 
 settings = Settings()

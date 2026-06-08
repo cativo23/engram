@@ -5,5 +5,8 @@ openai==2.41.0
 pydantic-settings==2.14.1
 python-dotenv==1.2.2
 
-# Coming in P2 (ingestion + vector store):
-#   psycopg[binary], pgvector, sqlalchemy, alembic, fastembed, numpy
+# P2 — ingestion + vector store  (pinned to Python-3.14-compatible wheels)
+psycopg[binary]==3.2.13
+pgvector==0.4.2
+fastembed==0.8.0
+numpy==2.4.6

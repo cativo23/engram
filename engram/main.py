@@ -7,6 +7,8 @@ import json
 import logging
 import uuid
 from collections.abc import Iterator
+from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
@@ -17,10 +19,24 @@ from .agent import run_agent, system_message
 
 logger = logging.getLogger("engram")
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Create the vector schema on startup; non-fatal if the DB is unavailable."""
+    try:
+        from .db import connect, init_schema
+        with connect() as conn:
+            init_schema(conn)
+    except Exception:
+        logger.exception("schema init skipped (db unavailable)")
+    yield
+
+
 app = FastAPI(
     title="Engram",
     description="Query your code with citation-backed answers.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # P1: in-memory conversation store (single process). P2+ can move this to a DB.
@@ -84,4 +100,4 @@ def chat(req: ChatRequest) -> StreamingResponse:
 
 
 # Static UI mounted LAST so /health and /chat match first.
-app.mount("/", StaticFiles(directory="engram/web", html=True), name="web")
+app.mount("/", StaticFiles(directory=str(Path(__file__).parent / "web"), html=True), name="web")

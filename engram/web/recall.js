@@ -18,7 +18,7 @@ export function initialState(repos) {
 export function fireRepos(repos, citations) {
   const best = {};
   for (const c of citations) {
-    // basename match is safe here: all indexed repos share one owner (cativo23/*)
+    // Match citations (owner/name) against the INDEX CORE list by basename.
     const name = c.repo.includes("/") ? c.repo.split("/").pop() : c.repo;
     best[name] = Math.max(best[name] ?? 0, c.similarity ?? 0);
   }

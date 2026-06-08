@@ -1,8 +1,7 @@
 # Engram stack.
 #   app — FastAPI + the static recall console (built from ./Dockerfile)
-#   db  — Postgres 16 with pgvector, ready for P2 ingestion (the app does NOT
-#         query it yet; search_code is still a stub). The DB is provisioned now
-#         so `docker compose up` is the single entry point going forward.
+#   db  — Postgres 16 with pgvector. Schema is initialised on app startup;
+#         search_code queries it for real (P2 shipped).
 #
 # Usage:  cp .env.example .env  (fill OPENROUTER_API_KEY)  &&  docker compose up --build
 #         then open http://127.0.0.1:8000/
@@ -30,13 +29,17 @@ services:
     build: .
     env_file: .env
     environment:
-      # Available for P2 (the app doesn't connect yet). Host `db` = the service name.
+      # Consumed by lifespan (schema init) and search_code. Host `db` = the service name.
       DATABASE_URL: postgresql://engram:engram@db:5432/engram
+      FASTEMBED_CACHE_PATH: /app/.fastembed_cache
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - engram-fastembed:/app/.fastembed_cache
 
 volumes:
   engram-pgdata:
+  engram-fastembed:

@@ -1,6 +1,14 @@
 from types import SimpleNamespace
 
+import engram.tools as tools
 from engram.agent import run_agent
+
+_FAKE_HITS = [
+    {"repo": "cativo23/x", "path": "a.py", "line_start": 1, "line_end": 5,
+     "similarity": 0.9, "snippet": "code-a", "github_url": "https://github.com/cativo23/x/blob/main/a.py#L1-L5"},
+    {"repo": "cativo23/y", "path": "b.py", "line_start": 2, "line_end": 4,
+     "similarity": 0.8, "snippet": "code-b", "github_url": "https://github.com/cativo23/y/blob/main/b.py#L2-L4"},
+]
 
 
 class FakeClient:
@@ -40,7 +48,8 @@ def test_no_tool_path_yields_only_tokens():
     assert "".join(e["text"] for e in events) == "Hello world"
 
 
-def test_tool_path_emits_tool_then_citations_then_tokens():
+def test_tool_path_emits_tool_then_citations_then_tokens(monkeypatch):
+    monkeypatch.setitem(tools.TOOL_FUNCTIONS, "search_code", lambda query: _FAKE_HITS)
     client = FakeClient([
         _msg(tool_calls=[_tool_call("search_code", '{"query": "agent loop"}')]),  # round 1: tool
         _msg(content="", tool_calls=None),                                        # round 2: ready
@@ -65,7 +74,8 @@ def test_tool_path_emits_tool_then_citations_then_tokens():
     assert tool_msgs and "[1]" in tool_msgs[0]["content"]
 
 
-def test_answer_produced_during_tool_resolution_is_emitted_without_extra_call():
+def test_answer_produced_during_tool_resolution_is_emitted_without_extra_call(monkeypatch):
+    monkeypatch.setitem(tools.TOOL_FUNCTIONS, "search_code", lambda query: _FAKE_HITS)
     # When the model finishes searching and writes its answer in the SAME
     # (non-streamed) turn that ends the tool loop, that text must be emitted —
     # not discarded in favour of a redundant streamed call that some models
