@@ -10,6 +10,7 @@ from collections.abc import Iterator
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .agent import run_agent, system_message
@@ -80,3 +81,7 @@ def chat(req: ChatRequest) -> StreamingResponse:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# Static UI mounted LAST so /health and /chat match first.
+app.mount("/", StaticFiles(directory="engram/web", html=True), name="web")
