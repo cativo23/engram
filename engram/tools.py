@@ -7,6 +7,7 @@ swaps the body for real pgvector similarity search — the return shape stays
 identical, so nothing downstream changes.
 """
 
+import inspect
 import json
 
 TOOLS_SCHEMA = [
@@ -89,9 +90,16 @@ TOOL_FUNCTIONS = {"search_code": search_code}
 
 
 def run_tool(name: str, arguments: str) -> list[dict]:
-    """Dispatch a tool call by name; return its STRUCTURED result (a list of hits)."""
+    """Dispatch a tool call by name; return its STRUCTURED result (a list of hits).
+
+    Models sometimes pass arguments the tool never declared (a hallucinated kwarg);
+    we keep only the parameters the function actually accepts so a stray argument
+    can't crash the agent loop.
+    """
     args = json.loads(arguments or "{}")
     fn = TOOL_FUNCTIONS.get(name)
     if fn is None:
         return []
-    return fn(**args)
+    accepted = inspect.signature(fn).parameters
+    kwargs = {k: v for k, v in args.items() if k in accepted}
+    return fn(**kwargs)

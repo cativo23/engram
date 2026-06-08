@@ -20,6 +20,15 @@ def test_run_tool_unknown_returns_empty():
     assert run_tool("nope", "{}") == []
 
 
+def test_run_tool_ignores_unexpected_model_arguments():
+    # Models (esp. small free ones) sometimes pass arguments the tool never
+    # declared — e.g. a hallucinated `path`. A stray kwarg must NOT crash the
+    # agent loop; run_tool keeps only the parameters the function accepts.
+    hits = run_tool("search_code", '{"query": "agent loop", "path": "foo.py"}')
+    assert isinstance(hits, list) and hits
+    assert hits[0]["repo"]
+
+
 def test_format_numbers_hits_for_the_model():
     hits = [
         {"repo": "cativo23/x", "path": "a.py", "line_start": 1, "line_end": 9,
