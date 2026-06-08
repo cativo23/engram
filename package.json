@@ -1,0 +1,14 @@
+{
+  "name": "engram-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Static frontend logic tests for Engram (vitest). The served UI needs no build step.",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}
