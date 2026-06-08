@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Engram · queryable memory of your code</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="kanji">記憶</div>
+    <h1><span class="title sig">Engram</span></h1>
+    <p class="pitch">
+      grep finds strings. github search finds files.<br />
+      <b>engram finds answers — with receipts.</b><br />
+      a queryable memory of everything you've built.
+    </p>
+    <div class="diffs stamp">
+      <div>personal <b>multi-repo</b> memory</div>
+      <div>citations as a <b>contract</b></div>
+      <div><b>self-hosted</b> · open models</div>
+      <div><b>eval</b>-measured</div>
+    </div>
+    <div class="status stamp" id="status-line">
+      <span id="repo-count">—</span> REPOS ·
+      <span id="chunk-count">—</span> CHUNKS INDEXED ·
+      <span class="off" id="online-indicator">○ CONNECTING</span>
+    </div>
+    <a class="cta stamp" href="#console">▾ begin recall</a>
+  </header>
+
+  <!-- RECALL CONSOLE -->
+  <main id="console">
+    <div class="console-h stamp">▸ RECALL CONSOLE</div>
+    <div class="grid">
+
+      <!-- INDEX CORE (left) -->
+      <section class="panel">
+        <div class="panel-h stamp">
+          <span>◢ INDEX CORE</span><span id="core-count" style="color:var(--green-dim)">—</span>
+        </div>
+        <div id="index-core"><!-- repos injected by app.js --></div>
+      </section>
+
+      <!-- RECALL (center) -->
+      <section class="panel">
+        <div class="panel-h stamp">
+          <span>▸ RECALL</span><span id="session-id" style="color:#4a4a4a">STANDBY</span>
+        </div>
+        <div class="recall" id="recall">
+          <div class="empty">
+            <div class="stamp" style="color:var(--text-dim)">awaiting query</div>
+            <div class="ex">› how do nightwire's intensity modes scale neon?</div>
+            <div class="ex">› where did I implement the agent loop?</div>
+            <div class="ex">› find every place I call an LLM API</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SOURCE LOCK (right) -->
+      <section class="panel">
+        <div class="panel-h stamp">
+          <span>⊹ SOURCE LOCK</span><span id="lock-badge" style="color:var(--green-dim)"></span>
+        </div>
+        <div id="source-lock">
+          <div class="lock-empty stamp">no source locked</div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- COMMAND BAR -->
+    <form class="cmd" id="cmd-form">
+      <span class="prompt">❯</span>
+      <input id="cmd-input" type="text" placeholder="interrogate your memory…" autocomplete="off" />
+      <button class="stamp" type="submit" id="cmd-send">RECALL</button>
+    </form>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <a href="https://github.com/cativo23/engram" target="_blank" rel="noopener">GITHUB ↗</a>
+    <a href="https://github.com/cativo23/engram/blob/main/docs/PRD.md" target="_blank" rel="noopener">ARCHITECTURE</a>
+    <a href="https://github.com/cativo23/nightwire" target="_blank" rel="noopener">NIGHTWIRE ↗</a>
+  </footer>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
