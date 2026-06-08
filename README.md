@@ -105,6 +105,22 @@ cited snippet with a deep link to the exact lines on GitHub.
 
 ---
 
+## Indexing your repos (P2)
+
+Engram searches repos you index locally — only the LLM calls leave your machine.
+Bring up the stack, then index one or more public repos:
+
+```bash
+docker compose up -d
+docker compose exec app python -m engram.ingest owner/name [owner/name ...]
+```
+
+Re-running is idempotent: unchanged files (by content hash) are skipped. Embeddings
+are computed locally with fastembed (`jina-embeddings-v2-base-code`, 768-dim) and
+stored in Postgres + pgvector. Runtime repo selection via an admin UI is planned (P2.5).
+
+---
+
 ## Development
 
 ```bash

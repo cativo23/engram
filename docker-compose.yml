@@ -30,13 +30,17 @@ services:
     build: .
     env_file: .env
     environment:
-      # Available for P2 (the app doesn't connect yet). Host `db` = the service name.
+      # Consumed by lifespan (schema init) and search_code. Host `db` = the service name.
       DATABASE_URL: postgresql://engram:engram@db:5432/engram
+      FASTEMBED_CACHE_PATH: /app/.fastembed_cache
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - engram-fastembed:/app/.fastembed_cache
 
 volumes:
   engram-pgdata:
+  engram-fastembed:

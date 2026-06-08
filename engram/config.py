@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 10
     search_top_k: int = 6
     repos_dir: str = "repos"          # gitignored clone target
+    fastembed_cache_path: str = ".fastembed_cache"   # gitignored; mount as a volume in Docker
 
 
 settings = Settings()
