@@ -8,6 +8,7 @@ import logging
 import uuid
 from collections.abc import Iterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
@@ -99,4 +100,4 @@ def chat(req: ChatRequest) -> StreamingResponse:
 
 
 # Static UI mounted LAST so /health and /chat match first.
-app.mount("/", StaticFiles(directory="engram/web", html=True), name="web")
+app.mount("/", StaticFiles(directory=str(Path(__file__).parent / "web"), html=True), name="web")
