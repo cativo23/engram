@@ -1,6 +1,9 @@
 import subprocess
 from pathlib import Path
 
+import numpy as np
+
+from engram.config import settings
 from tests.conftest import requires_db
 
 
@@ -20,13 +23,11 @@ def _make_fixture_repo(tmp_path: Path) -> Path:
 def test_ingest_local_repo_inserts_chunks_and_skips_secrets(db_conn, tmp_path, monkeypatch):
     from engram.ingest import pipeline
 
-    import numpy as np
-
     def fake_embed(texts):
         out = []
         for t in texts:
-            v = np.zeros(768, dtype=np.float32)
-            v[hash(t) % 768] = 1.0
+            v = np.zeros(settings.embed_dim, dtype=np.float32)
+            v[hash(t) % settings.embed_dim] = 1.0
             out.append(v)
         return out
 
@@ -48,11 +49,10 @@ def test_ingest_local_repo_inserts_chunks_and_skips_secrets(db_conn, tmp_path, m
 
 @requires_db
 def test_ingest_skips_symlinks(db_conn, tmp_path, monkeypatch):
-    import numpy as np
     from engram.ingest import pipeline
 
     monkeypatch.setattr(pipeline, "embed_passages",
-                        lambda texts: [np.zeros(768, dtype=np.float32) for _ in texts])
+                        lambda texts: [np.zeros(settings.embed_dim, dtype=np.float32) for _ in texts])
 
     secret = tmp_path / "secret.txt"
     secret.write_text("TOP SECRET\n")

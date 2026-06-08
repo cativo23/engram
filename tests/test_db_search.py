@@ -1,5 +1,6 @@
 import numpy as np
 
+from engram.config import settings
 from tests.conftest import requires_db
 
 
@@ -24,7 +25,7 @@ def test_cosine_ordering_returns_nearest_first(db_conn):
     ).fetchone()[0]
 
     def vec(seed):
-        v = np.zeros(768, dtype=np.float32)
+        v = np.zeros(settings.embed_dim, dtype=np.float32)
         v[seed] = 1.0
         return v
 

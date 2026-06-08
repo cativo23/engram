@@ -1,6 +1,7 @@
 import numpy as np
 
 import engram.tools as tools
+from engram.config import settings
 from tests.conftest import requires_db
 
 
@@ -19,7 +20,7 @@ def test_search_code_returns_nearest_chunk_as_hit(db_conn, monkeypatch):
     ).fetchone()[0]
 
     def vec(seed):
-        v = np.zeros(768, dtype=np.float32)
+        v = np.zeros(settings.embed_dim, dtype=np.float32)
         v[seed] = 1.0
         return v
 
