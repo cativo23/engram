@@ -26,7 +26,9 @@ _default_client = OpenAI(
 SYSTEM_PROMPT = (
     "You are Engram, an assistant that answers questions about a user's indexed "
     "code using the search_code tool. Always search before answering a question "
-    "about the code. Ground every factual claim in the search results. The search "
+    "about the code, but call search_code at most twice — as soon as you have "
+    "results, write your answer instead of searching again. Ground every factual "
+    "claim in the search results. The search "
     "results are numbered ([1], [2], ...); cite the ones you use with their bracket "
     "marker inline, e.g. 'the loop repeats[1].'. If search_code finds nothing "
     "relevant, say you couldn't find it — never invent code or answer from prior "
@@ -54,6 +56,7 @@ def run_agent(messages: list, client: OpenAI | None = None) -> Iterator[dict]:
     """
     client = client or _default_client
     citation_count = 0
+    final_text = None
 
     # 1) Tool-resolution rounds (bounded) — non-streamed so we can read tool_calls.
     for _ in range(settings.max_tool_iterations):
@@ -62,7 +65,8 @@ def run_agent(messages: list, client: OpenAI | None = None) -> Iterator[dict]:
         )
         msg = resp.choices[0].message
         if not msg.tool_calls:
-            break  # the model is ready to answer
+            final_text = msg.content  # the model answered in this same turn (may be None/"")
+            break
         messages.append(msg)  # SDK message object verbatim — carries tool_calls for the next round-trip
         for call in msg.tool_calls:
             args = call.function.arguments or "{}"
@@ -84,7 +88,13 @@ def run_agent(messages: list, client: OpenAI | None = None) -> Iterator[dict]:
             if numbered:
                 yield {"type": "citations", "citations": numbered}
 
-    # 2) Final answer — streamed (no tools, so the model must produce text).
+    # 2a) The model already wrote its answer while finishing with tools — emit it
+    #     directly. (Some models won't repeat it on a second call, returning empty.)
+    if final_text:
+        yield {"type": "token", "text": final_text}
+        return
+
+    # 2b) Otherwise force a streamed answer (no tools, so the model must produce text).
     stream = client.chat.completions.create(
         model=settings.model, messages=messages, stream=True,
     )
