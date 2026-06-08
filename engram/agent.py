@@ -1,20 +1,24 @@
-"""The agent loop: resolve any tool calls, then stream the final answer.
+"""The agent loop, as a stream of typed events.
 
-Streaming + tool-calling together is fiddly, so P1 keeps it simple and honest:
-run the tool-resolution rounds NON-streamed, then make one final STREAMED call
-(without tools) so the model must produce the answer text we stream to the client.
-(Trade-off: if the very first response needs no tool, we make one extra call to
-stream it. Fine for the skeleton; can be optimised later.)
+`run_agent` yields event dicts the API layer turns into Server-Sent Events:
+  {"type": "tool",      "name": ..., "query": ..., "status": "running"}
+  {"type": "citations", "citations": [<hit dicts, each with an "n" index>]}
+  {"type": "token",     "text": ...}
+
+Tool-resolution rounds run NON-streamed (so we can read tool_calls); the final
+answer is STREAMED token-by-token. The OpenAI client is INJECTABLE so tests pass
+a fake without touching the network.
 """
 
+import json
 from collections.abc import Iterator
 
 from openai import OpenAI
 
 from .config import settings
-from .tools import TOOLS_SCHEMA, run_tool
+from .tools import TOOLS_SCHEMA, format_hits_for_model, run_tool
 
-client = OpenAI(
+_default_client = OpenAI(
     base_url=settings.openrouter_base_url,
     api_key=settings.openrouter_api_key,
 )
@@ -22,8 +26,9 @@ client = OpenAI(
 SYSTEM_PROMPT = (
     "You are Engram, an assistant that answers questions about a user's indexed "
     "code using the search_code tool. Always search before answering a question "
-    "about the code. Ground every factual claim in the search results and include "
-    "the repo/path:line citation the tool returns. If search_code finds nothing "
+    "about the code. Ground every factual claim in the search results. The search "
+    "results are numbered ([1], [2], ...); cite the ones you use with their bracket "
+    "marker inline, e.g. 'the loop repeats[1].'. If search_code finds nothing "
     "relevant, say you couldn't find it — never invent code or answer from prior "
     "knowledge. Keep answers concise."
 )
@@ -34,13 +39,23 @@ def system_message() -> dict:
     return {"role": "system", "content": SYSTEM_PROMPT}
 
 
-def stream_reply(messages: list) -> Iterator[str]:
-    """Yield the assistant's answer token-by-token for one user turn.
+def _extract_query(arguments: str) -> str:
+    try:
+        return json.loads(arguments or "{}").get("query", "")
+    except (ValueError, AttributeError):
+        return ""
 
-    `messages` is mutated in place (tool requests + tool results are appended) so
-    the caller can persist the whole conversation as memory.
+
+def run_agent(messages: list, client: OpenAI | None = None) -> Iterator[dict]:
+    """Yield typed events for one user turn; mutate `messages` with the trace.
+
+    `messages` is mutated in place (tool requests + tool results appended) so the
+    caller can persist the whole conversation as memory.
     """
-    # 1) Tool-resolution rounds (bounded) — non-streamed.
+    client = client or _default_client
+    citation_count = 0
+
+    # 1) Tool-resolution rounds (bounded) — non-streamed so we can read tool_calls.
     for _ in range(settings.max_tool_iterations):
         resp = client.chat.completions.create(
             model=settings.model, messages=messages, tools=TOOLS_SCHEMA,
@@ -48,17 +63,31 @@ def stream_reply(messages: list) -> Iterator[str]:
         msg = resp.choices[0].message
         if not msg.tool_calls:
             break  # the model is ready to answer
-        messages.append(msg)
+        messages.append(msg)  # SDK message object verbatim — carries tool_calls for the next round-trip
         for call in msg.tool_calls:
-            result = run_tool(call.function.name, call.function.arguments)
-            messages.append(
-                {"role": "tool", "tool_call_id": call.id, "content": result}
-            )
+            args = call.function.arguments or "{}"
+            yield {
+                "type": "tool",
+                "name": call.function.name,
+                "query": _extract_query(args),
+                "status": "running",
+            }
+            hits = run_tool(call.function.name, args)
+            start = citation_count + 1
+            numbered = [{**h, "n": start + i} for i, h in enumerate(hits)]
+            citation_count += len(hits)
+            messages.append({
+                "role": "tool",
+                "tool_call_id": call.id,
+                "content": format_hits_for_model(hits, start_index=start),
+            })
+            if numbered:
+                yield {"type": "citations", "citations": numbered}
 
-    # 2) Final answer — streamed (no tools, so it must produce text).
+    # 2) Final answer — streamed (no tools, so the model must produce text).
     stream = client.chat.completions.create(
         model=settings.model, messages=messages, stream=True,
     )
     for chunk in stream:
         if chunk.choices and chunk.choices[0].delta.content:
-            yield chunk.choices[0].delta.content
+            yield {"type": "token", "text": chunk.choices[0].delta.content}
