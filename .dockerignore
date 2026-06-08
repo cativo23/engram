@@ -1,0 +1,16 @@
+# Keep the build context (and image) small and secret-free.
+.git
+.venv
+node_modules
+__pycache__
+*.pyc
+.env
+.env.example
+tests
+docs
+repos
+.fastembed_cache
+.superpowers
+package.json
+package-lock.json
+*.md

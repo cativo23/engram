@@ -1,16 +1,21 @@
-"""Engram API — P1 skeleton: a streaming /chat endpoint with conversation memory.
+"""Engram API — a streaming /chat over Server-Sent Events.
 
 Run:  uvicorn engram.main:app --reload
 """
 
+import json
+import logging
 import uuid
 from collections.abc import Iterator
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .agent import stream_reply, system_message
+from .agent import run_agent, system_message
+
+logger = logging.getLogger("engram")
 
 app = FastAPI(
     title="Engram",
@@ -27,33 +32,56 @@ class ChatRequest(BaseModel):
     conversation_id: str | None = None       # omit to start a new conversation
 
 
+def sse(event: str, data: dict) -> str:
+    """Format one Server-Sent Event frame."""
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
+
+
 @app.get("/health")
 def health() -> dict:
-    """Liveness probe."""
+    """Liveness probe — drives the UI's ONLINE indicator."""
     return {"status": "ok"}
 
 
 @app.post("/chat")
 def chat(req: ChatRequest) -> StreamingResponse:
-    """Stream the assistant's answer; memory is keyed by conversation_id.
+    """Stream the answer as SSE: start -> tool/citations -> token... -> (error?) -> done.
 
-    The conversation id is returned in the `X-Conversation-Id` header — pass it
-    back on the next request to continue the same conversation.
+    `done` always fires last, even when an `error` frame precedes it.
+    The conversation id is sent in the `start` event; pass it back as
+    `conversation_id` to continue the same conversation.
     """
     conv_id = req.conversation_id or str(uuid.uuid4())
     messages = CONVERSATIONS.setdefault(conv_id, [system_message()])
     messages.append({"role": "user", "content": req.message})
 
     def generate() -> Iterator[str]:
-        full: list[str] = []
-        for piece in stream_reply(messages):
-            full.append(piece)
-            yield piece
-        # Persist the assistant's reply so the next turn "remembers" it.
-        messages.append({"role": "assistant", "content": "".join(full)})
+        yield sse("start", {"conversation_id": conv_id})
+        answer: list[str] = []
+        try:
+            for ev in run_agent(messages):
+                if ev["type"] == "token":
+                    answer.append(ev["text"])
+                    yield sse("token", {"text": ev["text"]})
+                elif ev["type"] == "tool":
+                    yield sse("tool", {"name": ev["name"], "query": ev["query"],
+                                       "status": ev["status"]})
+                elif ev["type"] == "citations":
+                    yield sse("citations", {"citations": ev["citations"]})
+        except Exception:
+            logger.exception("run_agent failed")
+            yield sse("error", {"message": "recall failed; check server logs"})
+        finally:
+            # Persist the assistant's reply (even if partial) so the next turn remembers it.
+            messages.append({"role": "assistant", "content": "".join(answer)})
+        yield sse("done", {})
 
     return StreamingResponse(
         generate(),
-        media_type="text/plain",
-        headers={"X-Conversation-Id": conv_id},
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# Static UI mounted LAST so /health and /chat match first.
+app.mount("/", StaticFiles(directory="engram/web", html=True), name="web")

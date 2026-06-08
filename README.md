@@ -77,6 +77,44 @@ curl -N -X POST localhost:8000/chat \
 
 ---
 
+## Web UI
+
+Engram ships a static "recall console" served by FastAPI at `/` (no build step).
+It consumes the SSE `/chat` contract: `start` → `tool`/`citations` → `token`… → `done`.
+
+```bash
+uvicorn engram.main:app --reload      # then open http://127.0.0.1:8000/
+```
+
+Design: built on [nightwire](https://github.com/cativo23/nightwire), the author's
+cyberpunk design system (ARCHIVE intensity). See
+`docs/superpowers/specs/2026-06-08-engram-frontend-design.md`.
+
+The left **INDEX CORE** rail shows the indexed repos; on a query, the repos that
+match light up ("fire") with their similarity score — the engram (memory-trace)
+concept made visible. The center **RECALL** pane streams the answer with a
+retrieval trace and `[n]` citation badges; the right **SOURCE LOCK** pane shows the
+cited snippet with a deep link to the exact lines on GitHub.
+
+> **Note on answer quality:** citation badges (`[n]`) and answer fidelity depend on
+> the model following the cite-with-brackets instruction. Small free models
+> (e.g. the default `gpt-oss-120b:free`) sometimes use non-standard citation
+> markers or spend their turns on tool calls without a final answer. Set a stronger
+> model via the `MODEL` env var for the best results. The structured panels
+> (firing repos, retrieval trace, source lock) work regardless of the model.
+
+---
+
+## Development
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+pytest                  # backend tests (tools, agent, SSE)
+npm install && npm test # frontend logic tests (SSE parser, state reducer)
+```
+
+---
+
 ## Roadmap
 
 | Phase | Deliverable | Status |
