@@ -3,6 +3,7 @@
 __pycache__/
 *.pyc
 .DS_Store
+.superpowers/
 
 # Coming later: local clones of indexed repos, model caches
 /repos/
