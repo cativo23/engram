@@ -47,13 +47,18 @@ export function renderRecall(state) {
   const answer = state.answer
     ? `<div class="ai"><span class="tag">AI</span>${renderAnswer(state.answer)}</div>`
     : "";
+  // The model searched but produced no final text (common with small models that
+  // loop on tool calls). Show an honest note instead of an empty, broken-looking pane.
+  const noAnswer = state.status === "done" && !state.answer
+    ? `<div class="ai" style="color:var(--text-dim)"><span class="tag">AI</span>no answer generated — the model searched but didn't produce a final response. Try rephrasing, or set a stronger <b style="color:var(--cyan-dim)">MODEL</b>.</div>`
+    : "";
   const errorBlock = state.status === "error"
-    ? `<div class="ai" style="color:var(--text-dim)">recall failed — ${escapeHtml(state.error || "")}</div>`
+    ? `<div class="ai" style="color:var(--text-dim)"><span class="tag" style="color:var(--text-dim);border-color:var(--text-dim)">!</span>${escapeHtml(state.error || "")}</div>`
     : "";
   recall.innerHTML = `<div class="turn">
     <div class="q"><b>❯</b> ${escapeHtml(state.query || "")}</div>
     <table class="trace">${traceRows}${cityRows}</table>
-    ${thinking}${answer}${errorBlock}
+    ${thinking}${answer}${noAnswer}${errorBlock}
   </div>`;
 }
 
